@@ -1,97 +1,100 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Probabilistic Novel Generator</title>
-<style>
-  html,body{margin:0;padding:0;height:100%;background:#fff;color:#000;}
-  body{font-family:"Times New Roman", Times, serif; font-size:12px; line-height:1.45; padding:24px;}
-  #novel{white-space:normal; word-wrap:break-word;}
-  #regen{
-    font-family:"American Typewriter","Courier New",monospace;
-    font-size:12px;
-    padding:4px 8px;
-    border-radius:4px;
-    border:1px solid #ccc;
-    background:#f7f7f7;
-    cursor:pointer;
-    margin-bottom:12px;
-  }
-  #loader{font-family:"American Typewriter","Courier New",monospace;font-size:12px;margin-bottom:12px;}
-</style>
+  <meta charset="UTF-8">
+  <title>Probabilistic Novel Generator</title>
+  <style>
+    body {
+      font-family: "American Typewriter", "Times New Roman", serif;
+      font-size: 12px;
+      background: white;
+      color: black;
+      margin: 20px;
+    }
+    #generate {
+      font-family: "American Typewriter", "Times New Roman", serif;
+      font-size: 12px;
+      padding: 6px 12px;
+      margin-bottom: 10px;
+    }
+    #output {
+      white-space: pre-wrap;
+    }
+  </style>
 </head>
 <body>
-<button id="regen">--:--:--</button>
-<div id="loader">Loading sources…</div>
-<main id="novel" aria-live="polite" role="main"></main>
+  <button id="generate">Loading time…</button>
+  <div id="output">Loading sources…</div>
 
-<script>
-(function(){
-  function stripTags(html){return html.replace(/<script[\s\S]*?<\/script>/gi,' ').replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ');}
-  function wordsFromText(txt){return txt.replace(/\s+/g,' ').trim().split(' ').filter(Boolean);}
-  function weightedChoice(weights){var sum=0;for(var i=0;i<weights.length;i++)sum+=weights[i].w;
-    var r=Math.random()*sum,cum=0;for(var i=0;i<weights.length;i++){cum+=weights[i].w;if(r<=cum)return weights[i].val;}return weights[weights.length-1].val;}
-
-  var pools=[],targetWords=1000000,novelEl=document.getElementById('novel'),loader=document.getElementById('loader');
-
-  function generateOnce(){
-    loader.textContent='Generating novel…';
-    novelEl.textContent='';
-    var parts=[],total=0;
-    while(total<targetWords){
-      var p=weightedChoice(pools.map(x=>({w:x.weight,val:x})));
-      var len=Math.floor(Math.random()*100)+20;
-      var start=Math.floor(Math.random()*(p.words.length-len));
-      var slice=p.words.slice(start,start+len);
-      parts.push(slice.join(' '));
-      total+=slice.length;
+  <script>
+    // Update button label with device time
+    function updateTime() {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString();
+      document.getElementById("generate").textContent = timeStr;
     }
-    novelEl.textContent=parts.join(' ').split(' ').slice(0,targetWords).join(' ');
-    loader.textContent='';
-  }
+    setInterval(updateTime, 1000);
+    updateTime();
 
-  async function init(){
-    try{
-      const [bibleRes,dictRes,...jsonRes]=await Promise.all([
-        fetch('pg10681-images.html'),
-        fetch('pg30-images.html'),
-        fetch('wordnet_1.json'),
-        fetch('wordnet_2.json')
-      ]);
-      const [bibleTxt,dictTxt,...jsonTxts]=await Promise.all([bibleRes.text(),dictRes.text(),...jsonRes.map(r=>r.text())]);
-      var bible_words=wordsFromText(stripTags(bibleTxt));
-      var dict_words=wordsFromText(stripTags(dictTxt));
-      var json_words=[];
-      jsonTxts.forEach(txt=>{
-        try{
-          var parsed=JSON.parse(txt),collected=[];
-          (function walk(o){if(!o)return;if(typeof o==='string'){collected.push(o);return;}
-            if(Array.isArray(o)){o.forEach(walk);return;}
-            if(typeof o==='object'){for(var k in o)walk(o[k]);}})(parsed);
-          json_words.push(...collected.join(' ').split(/\s+/));
-        }catch(e){json_words.push(...txt.split(/\s+/));}
-      });
+    // Load sources
+    async function loadSources() {
+      const sources = {
+        bible: "pg10681-images.html",
+        dict: "pg30-images.html",
+        jsons: ["wordnet_1.json", "wordnet_2.json"]
+      };
 
-      pools=[
-        {words:bible_words.length?bible_words:['missing'],weight:0.09},
-        {words=dict_words.length?dict_words:['missing'],weight:0.50},
-        {words=json_words.length?json_words:['missing'],weight:0.41}
-      ];
-      generateOnce();
-    }catch(err){loader.textContent='Error loading sources: '+err;}
-  }
+      async function fetchText(url) {
+        try {
+          const r = await fetch(url);
+          return await r.text();
+        } catch (e) {
+          console.error("Error fetching", url, e);
+          return "";
+        }
+      }
 
-  // Button shows device time
-  function updateTime(){
-    document.getElementById('regen').textContent = new Date().toLocaleTimeString();
-  }
-  setInterval(updateTime,1000);
-  updateTime();
+      const bible = await fetchText(sources.bible);
+      const dict = await fetchText(sources.dict);
+      const jsonParts = await Promise.all(sources.jsons.map(fetchText));
+      const jsonText = jsonParts.join("\n");
 
-  document.getElementById('regen').onclick=function(){setTimeout(generateOnce,50);};
-  init();
-})();
-</script>
+      return { bible, dict, jsonText };
+    }
+
+    // Generate random text
+    function generateNovel(sources) {
+      const rand = Math.random();
+      let chosen;
+      if (rand < 0.09) {
+        chosen = sources.bible;
+      } else if (rand < 0.59) {
+        chosen = sources.dict;
+      } else {
+        chosen = sources.jsonText;
+      }
+      const words = chosen.split(/\s+/);
+      let out = [];
+      for (let i = 0; i < 100; i++) {
+        out.push(words[Math.floor(Math.random() * words.length)]);
+      }
+      return out.join(" ");
+    }
+
+    // Main
+    let sourcesCache = null;
+    loadSources().then(src => {
+      sourcesCache = src;
+      document.getElementById("output").textContent = "Sources loaded. Click the time button to generate.";
+    });
+
+    document.getElementById("generate").addEventListener("click", () => {
+      if (sourcesCache) {
+        document.getElementById("output").textContent = generateNovel(sourcesCache);
+      } else {
+        document.getElementById("output").textContent = "Still loading sources…";
+      }
+    });
+  </script>
 </body>
 </html>
