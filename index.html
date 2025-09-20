@@ -21,8 +21,8 @@
 
 <script>
 (function(){
-  function stripTags(html){return html.replace(/<script[\s\S]*?<\/script>/gi,' ').replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ');}
-  function wordsFromText(txt){return txt.replace(/\s+/g,' ').trim().split(' ').filter(Boolean);}
+  function stripTags(html){return html.replace(/<script[\\s\\S]*?<\\/script>/gi,' ').replace(/<style[\\s\\S]*?<\\/style>/gi,' ').replace(/<[^>]+>/g,' ');}
+  function wordsFromText(txt){return txt.replace(/\\s+/g,' ').trim().split(' ').filter(Boolean);}
   function weightedChoice(weights){var sum=0;for(var i=0;i<weights.length;i++)sum+=weights[i].w;
     var r=Math.random()*sum,cum=0;for(var i=0;i<weights.length;i++){cum+=weights[i].w;if(r<=cum)return weights[i].val;}return weights[weights.length-1].val;}
 
@@ -48,7 +48,9 @@
     loader=document.getElementById('loader');
     try{
       const [bibleRes,dictRes,jsonRes]=await Promise.all([
-        fetch('pg10681-images.html'),fetch('pg30-images.html'),fetch('wordnet_single.json')
+        fetch('pg10681-images.html'),
+        fetch('pg30-images.html'),
+        fetch('wordnet_single.json')
       ]);
       const [bibleTxt,dictTxt,jsonTxt]=await Promise.all([bibleRes.text(),dictRes.text(),jsonRes.text()]);
       var bible_words=wordsFromText(stripTags(bibleTxt));
@@ -59,7 +61,7 @@
         (function walk(o){if(!o)return;if(typeof o==='string'){collected.push(o);return;}
           if(Array.isArray(o)){o.forEach(walk);return;}
           if(typeof o==='object'){for(var k in o)walk(o[k]);}})(parsed);
-        json_words=collected.join(' ').replace(/\s+/g,' ').trim().split(' ').filter(Boolean);
+        json_words=collected.join(' ').replace(/\\s+/g,' ').trim().split(' ').filter(Boolean);
       }catch(e){json_words=wordsFromText(jsonTxt);}
 
       pools=[
