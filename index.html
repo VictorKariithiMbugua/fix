@@ -8,15 +8,22 @@
   html,body{margin:0;padding:0;height:100%;background:#fff;color:#000;}
   body{font-family:"Times New Roman", Times, serif; font-size:12px; line-height:1.45; padding:24px;}
   #novel{white-space:normal; word-wrap:break-word;}
-  .meta{font-family:"American Typewriter","Courier New",monospace;font-size:12px;margin-bottom:12px;}
-  #loader{position:fixed;left:12px;top:12px;background:rgba(255,255,255,0.95);padding:8px 12px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
-  #controls{position:fixed;right:12px;top:12px;background:rgba(255,255,255,0.95);padding:8px 12px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
-  button{font-family:inherit;padding:6px 8px;border-radius:4px;border:1px solid #ccc;background:#f7f7f7;cursor:pointer}
+  #regen{
+    font-family:"American Typewriter","Courier New",monospace;
+    font-size:12px;
+    padding:4px 8px;
+    border-radius:4px;
+    border:1px solid #ccc;
+    background:#f7f7f7;
+    cursor:pointer;
+    margin-bottom:12px;
+  }
+  #loader{font-family:"American Typewriter","Courier New",monospace;font-size:12px;margin-bottom:12px;}
 </style>
 </head>
 <body>
-<div id="loader" class="meta">Building novel — generating 1,000,000 words (client-side)...</div>
-<div id="controls" class="meta"><button id="regen">Regenerate</button> <button id="download">Download text</button></div>
+<button id="regen">--:--:--</button>
+<div id="loader">Loading sources…</div>
 <main id="novel" aria-live="polite" role="main"></main>
 
 <script>
@@ -26,10 +33,11 @@
   function weightedChoice(weights){var sum=0;for(var i=0;i<weights.length;i++)sum+=weights[i].w;
     var r=Math.random()*sum,cum=0;for(var i=0;i<weights.length;i++){cum+=weights[i].w;if(r<=cum)return weights[i].val;}return weights[weights.length-1].val;}
 
-  var pools=[],targetWords=1000000,novelEl,loader;
+  var pools=[],targetWords=1000000,novelEl=document.getElementById('novel'),loader=document.getElementById('loader');
 
   function generateOnce(){
-    loader.style.display='block';novelEl.textContent='';
+    loader.textContent='Generating novel…';
+    novelEl.textContent='';
     var parts=[],total=0;
     while(total<targetWords){
       var p=weightedChoice(pools.map(x=>({w:x.weight,val:x})));
@@ -40,12 +48,10 @@
       total+=slice.length;
     }
     novelEl.textContent=parts.join(' ').split(' ').slice(0,targetWords).join(' ');
-    loader.style.display='none';
+    loader.textContent='';
   }
 
   async function init(){
-    novelEl=document.getElementById('novel');
-    loader=document.getElementById('loader');
     try{
       const [bibleRes,dictRes,jsonRes]=await Promise.all([
         fetch('pg10681-images.html'),
@@ -73,14 +79,14 @@
     }catch(err){loader.textContent='Error loading sources: '+err;}
   }
 
-  document.getElementById('regen').onclick=function(){setTimeout(generateOnce,50);};
-  document.getElementById('download').onclick=function(){
-    var text=novelEl.textContent;
-    var blob=new Blob([text],{type:'text/plain'}),url=URL.createObjectURL(blob);
-    var a=document.createElement('a');a.href=url;a.download='generated_novel.txt';a.click();
-    setTimeout(function(){URL.revokeObjectURL(url);},1500);
-  };
+  // Button shows device time
+  function updateTime(){
+    document.getElementById('regen').textContent = new Date().toLocaleTimeString();
+  }
+  setInterval(updateTime,1000);
+  updateTime();
 
+  document.getElementById('regen').onclick=function(){setTimeout(generateOnce,50);};
   init();
 })();
 </script>
